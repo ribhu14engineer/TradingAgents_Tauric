@@ -3,6 +3,7 @@ from typing import Annotated
 import yfinance as yf
 
 from tradingagents.dataflows.date_window import (
+    withhold_live_consensus,
     withhold_live_profile,
     withhold_undated_statements,
     withhold_undisclosed_trades,
@@ -164,6 +165,58 @@ def get_insider_transactions(
         return f"No insider transactions reported for symbol '{canonical}'"
 
     return f"# Insider Transactions data for {canonical}\n" + data.to_csv()
+
+
+_RATINGS = ("strongBuy", "buy", "hold", "sell", "strongSell")
+
+
+def get_analyst_consensus(
+    ticker: Annotated[str, "ticker symbol of the company"],
+    as_of_date: Annotated[str | None, "analysis date, yyyy-mm-dd"] = None,
+):
+    """Sell-side ratings counts and price targets from yfinance, for a run dated today."""
+    canonical = normalize_symbol(ticker)
+    withheld = withhold_live_consensus(as_of_date, canonical)
+    if withheld:
+        return withheld
+    stock = yf.Ticker(canonical)
+    targets = yf_retry(lambda: stock.analyst_price_targets) or {}
+    trend = yf_retry(lambda: stock.recommendations)
+    has_trend = trend is not None and not trend.empty and set(_RATINGS) <= set(trend.columns)
+
+    if not has_trend and not targets.get("mean"):
+        if not vendor_reachable(YAHOO_HOST):
+            raise VendorUnavailableError("Yahoo Finance is unreachable; analyst consensus was not retrieved")
+        return f"No analyst coverage reported for symbol '{canonical}'"
+
+    # Framed as opinion so the analyst weighs it rather than adopts it: consensus
+    # trails price and is rarely bearish, so agreement with it is not evidence.
+    lines = [
+        f"# Analyst Consensus for {canonical}",
+        "These are sell-side analysts' opinions, not data about the company. They "
+        "lag the price and rarely say Sell; weigh them against the other evidence "
+        "and say where and why the evidence agrees or disagrees with them.",
+        "",
+    ]
+    if has_trend:
+        lines.append("| Period | Strong Buy | Buy | Hold | Sell | Strong Sell | Total |")
+        lines.append("|---|---:|---:|---:|---:|---:|---:|")
+        for _, row in trend.iterrows():
+            counts = [int(row[r] or 0) for r in _RATINGS]
+            period = {"0m": "This month"}.get(str(row.get("period")), f"{str(row.get('period')).lstrip('-')} ago")
+            lines.append(f"| {period} | " + " | ".join(map(str, counts)) + f" | {sum(counts)} |")
+        lines.append("")
+    if targets.get("mean"):
+        quote = targets.get("current")
+        lines.append("Price targets: " + ", ".join(
+            f"{name} {targets[key]:,.2f}" for key, name in
+            (("mean", "mean"), ("median", "median"), ("low", "low"), ("high", "high"))
+            if targets.get(key) is not None
+        ))
+        if quote:
+            lines.append(f"Mean target vs the quote the vendor used ({quote:,.2f}): "
+                         f"{targets['mean'] / quote - 1:+.1%}. Check that quote against the verified close.")
+    return "\n".join(lines)
 
 
 def get_company_profile(ticker: str) -> dict:

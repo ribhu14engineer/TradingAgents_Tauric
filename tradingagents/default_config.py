@@ -25,6 +25,11 @@ _ENV_OVERRIDES = {
     "TRADINGAGENTS_TEMPERATURE":          "temperature",
     "TRADINGAGENTS_LLM_MAX_RETRIES":      "llm_max_retries",
     "TRADINGAGENTS_MAX_TOKENS":           "max_tokens",
+    "TRADINGAGENTS_HOLDING_PERIOD_DAYS":  "holding_period_days",
+    # A list default reads a ";"-separated value: "RBI repo rate;Nifty FII flows".
+    "TRADINGAGENTS_GLOBAL_NEWS_QUERIES":  "global_news_queries",
+    # A dotted key names one entry of a nested default: here the news vendor chain.
+    "TRADINGAGENTS_NEWS_VENDORS":         "data_vendors.news_data",
     # Provider-specific reasoning/thinking knobs (None = each provider's own
     # default). Settable here for non-interactive runs; the CLI also offers an
     # interactive choice, which is skipped when the matching var is set.
@@ -58,6 +63,11 @@ def _coerce(value: str, reference):
         return int(value)
     if isinstance(reference, float):
         return float(value)
+    if isinstance(reference, list):
+        items = [item.strip() for item in value.split(";") if item.strip()]
+        if not items:
+            raise ValueError(f"expected one or more ';'-separated items, got {value!r}")
+        return items
     return value
 
 
@@ -67,8 +77,10 @@ def _apply_env_overrides(config: dict) -> dict:
         raw = os.environ.get(env_var)
         if raw is None or raw == "":
             continue
+        parent, _, child = key.rpartition(".")
+        target = config[parent] if parent else config
         try:
-            config[key] = _coerce(raw, config.get(key))
+            target[child] = _coerce(raw, target.get(child))
         except ValueError as exc:
             raise ValueError(f"Invalid value for {env_var}: {exc}") from exc
     return config
@@ -161,7 +173,7 @@ def build_default_config() -> dict:
             # Statements come from SEC EDGAR as filed (US filers), then Yahoo; the
         # overview and insider tools, which SEC EDGAR does not serve, from Yahoo.
         "fundamental_data": "sec_edgar,yfinance",  # Options: sec_edgar, alpha_vantage, yfinance
-            "news_data": "yfinance",             # Options: alpha_vantage, yfinance
+            "news_data": "yfinance",             # Options: alpha_vantage, yfinance, google_news
             "macro_data": "fred",                # Options: fred (needs FRED_API_KEY)
             "prediction_markets": "polymarket",  # Options: polymarket (keyless)
         },

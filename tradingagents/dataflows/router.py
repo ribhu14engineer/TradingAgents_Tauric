@@ -18,6 +18,7 @@ from tradingagents.dataflows.vendors.alpha_vantage import (
     get_stock as get_alpha_vantage_stock,
 )
 from tradingagents.dataflows.vendors.fred import get_macro_data as get_fred_macro_data
+from tradingagents.dataflows.vendors.google_news import get_global_news_google, get_news_google
 from tradingagents.dataflows.vendors.polymarket import (
     get_prediction_markets as get_polymarket_prediction_markets,
 )
@@ -27,6 +28,7 @@ from tradingagents.dataflows.vendors.sec_edgar import (
     get_income_statement as get_sec_edgar_income_statement,
 )
 from tradingagents.dataflows.vendors.yahoo.fundamentals import (
+    get_analyst_consensus as get_yfinance_analyst_consensus,
     get_balance_sheet as get_yfinance_balance_sheet,
     get_cashflow as get_yfinance_cashflow,
     get_fundamentals as get_yfinance_fundamentals,
@@ -61,7 +63,8 @@ TOOLS_CATEGORIES = {
             "get_fundamentals",
             "get_balance_sheet",
             "get_cashflow",
-            "get_income_statement"
+            "get_income_statement",
+            "get_analyst_consensus",
         ]
     },
     "news_data": {
@@ -125,14 +128,19 @@ VENDOR_METHODS = {
         "sec_edgar": get_sec_edgar_income_statement,
         "yfinance": get_yfinance_income_statement,
     },
+    "get_analyst_consensus": {
+        "yfinance": get_yfinance_analyst_consensus,
+    },
     # news_data
     "get_news": {
         "alpha_vantage": get_alpha_vantage_news,
         "yfinance": get_news_yfinance,
+        "google_news": get_news_google,
     },
     "get_global_news": {
         "yfinance": get_global_news_yfinance,
         "alpha_vantage": get_alpha_vantage_global_news,
+        "google_news": get_global_news_google,
     },
     "get_insider_transactions": {
         "alpha_vantage": get_alpha_vantage_insider_transactions,

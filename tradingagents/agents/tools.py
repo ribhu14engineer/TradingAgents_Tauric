@@ -230,6 +230,21 @@ def get_insider_transactions(
 
 
 @tool
+def get_analyst_consensus(
+    ticker: Annotated[str, InjectedState("company_of_interest")],
+    trade_date: Annotated[str, InjectedState("trade_date")] = "",
+) -> str:
+    """
+    Retrieve sell-side analyst consensus for the instrument under analysis:
+    Buy/Hold/Sell counts by month and price targets. These are opinions, not data.
+    Uses the configured fundamental_data vendor.
+    Returns:
+        str: A report of analyst ratings and price targets
+    """
+    return route_to_vendor("get_analyst_consensus", ticker, trade_date or None)
+
+
+@tool
 def get_macro_indicators(
     indicator: Annotated[
         str,

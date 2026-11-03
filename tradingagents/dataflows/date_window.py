@@ -137,6 +137,24 @@ def withhold_live_profile(as_of_date: str | None, label: str) -> str | None:
     )
 
 
+def withhold_live_consensus(as_of_date: str | None, label: str) -> str | None:
+    """Notice to serve instead of today's analyst consensus, or None to serve it.
+
+    Vendor consensus (ratings counts, price targets) is a present-day snapshot,
+    and the dated upgrade history that could rebuild a past one is empty for most
+    non-US listings, so a run dated in the past would read opinions formed after it.
+    """
+    if not is_historical(as_of_date):
+        return None
+    return (
+        f"# Analyst Consensus for {label}\n"
+        f"# Point-in-time as of: {as_of_date}\n\n"
+        f"Analyst consensus is withheld for this date. This vendor serves only "
+        f"today's ratings and price targets, so it cannot show what analysts "
+        f"thought on {as_of_date}."
+    )
+
+
 def withhold_undisclosed_trades(as_of_date: str | None, label: str) -> str | None:
     """Notice to serve instead of insider trades with no filing date, or None to serve them.
 

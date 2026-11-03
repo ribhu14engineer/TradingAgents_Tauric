@@ -137,3 +137,28 @@ def test_unknown_env_var_is_ignored(monkeypatch):
         TRADINGAGENTS_NONEXISTENT_KEY="oops",
     )
     assert "nonexistent_key" not in config
+
+
+def test_list_override_splits_on_semicolons(monkeypatch):
+    config = _config_with_env(
+        monkeypatch,
+        TRADINGAGENTS_GLOBAL_NEWS_QUERIES=" RBI repo rate ; Nifty FII flows;",
+    )
+    assert config["global_news_queries"] == ["RBI repo rate", "Nifty FII flows"]
+
+
+def test_empty_list_override_raises(monkeypatch):
+    monkeypatch.setenv("TRADINGAGENTS_GLOBAL_NEWS_QUERIES", " ; ")
+    with pytest.raises(ValueError, match="TRADINGAGENTS_GLOBAL_NEWS_QUERIES"):
+        default_config_module.build_default_config()
+
+
+def test_dotted_override_sets_one_nested_entry(monkeypatch):
+    config = _config_with_env(
+        monkeypatch,
+        TRADINGAGENTS_NEWS_VENDORS="google_news,yfinance",
+        TRADINGAGENTS_HOLDING_PERIOD_DAYS="20",
+    )
+    assert config["data_vendors"]["news_data"] == "google_news,yfinance"
+    assert config["data_vendors"]["core_stock_apis"] == "yfinance"  # siblings untouched
+    assert config["holding_period_days"] == 20
